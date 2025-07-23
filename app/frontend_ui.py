@@ -2,7 +2,7 @@ import json
 import httpx
 import streamlit as st
 import requests
-from fpdf import FPDF
+#from fpdf import FPDF
 import json
 from langchain_google_genai import ChatGoogleGenerativeAI
 from env import import_my_env
@@ -49,7 +49,7 @@ def func(llm):
                     advice_data = response.json()
                     st.session_state["advice_data"] = advice_data
                     st.session_state["final_advice"] = advice_data.get("advice", "")
-                    st.success("✅ Advice received!")
+                    #st.success("✅ Advice received!")
                     
                     print(f"\n\n\n***********User profile***********\n")
                     print(advice_data.get("user_profile", ""))
@@ -64,11 +64,11 @@ def func(llm):
     if "advice_data" in st.session_state:
         st.markdown("### 📈 Your Stock Recommendation")
         with st.container():
-            st.markdown("#### Backend Advice")
+            #st.markdown("#### Backend Advice")
             st.markdown(f"<div class=\"advice-box\">{st.session_state['advice_data'].get('advice', 'No advice available.')}</div>", unsafe_allow_html=True)
 
-        pdf_bytes = generate_advice_pdf(st.session_state["advice_data"])
-        st.download_button("📥 Download Advice as PDF", pdf_bytes, "advice_report.pdf", mime="application/pdf")
+        #pdf_bytes = generate_advice_pdf(st.session_state["advice_data"])
+        #st.download_button("📥 Download Advice as PDF", pdf_bytes, "advice_report.pdf", mime="application/pdf")
     
     # 💬 Chat interface below advice
     if "final_advice" in st.session_state:
@@ -157,16 +157,16 @@ st.markdown("📈 **Welcome to Financial Adviser!** \n\
              This helps us tailor stock insights and strategies that *fit you perfectly*. \n\
              **Ready to unlock your investment potential? Let’s get started! 💼** \n")
 
-def generate_advice_pdf(advice_data):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Stock Advice Summary", ln=True, align="C")
-    for k, v in advice_data.items():
-        text = f"{k}:\n{v if isinstance(v, str) else json.dumps(v, indent=2)}"
-        for line in text.split("\n"):
-            pdf.multi_cell(0, 10, line)
-    return pdf.output(dest="S").encode("latin1")
+# def generate_advice_pdf(advice_data):
+#     pdf = FPDF()
+#     pdf.add_page()
+#     pdf.set_font("Arial", size=12)
+#     pdf.cell(200, 10, txt="Stock Advice Summary", ln=True, align="C")
+#     for k, v in advice_data.items():
+#         text = f"{k}:\n{v if isinstance(v, str) else json.dumps(v, indent=2)}"
+#         for line in text.split("\n"):
+#             pdf.multi_cell(0, 10, line)
+#     return pdf.output(dest="S").encode("latin1")
 
 # Layout: left column for inputs, right column for advice + chat
 col1, col2 = st.columns([1, 2])
