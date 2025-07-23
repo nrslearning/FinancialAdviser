@@ -121,11 +121,11 @@ def rank_top_stocks(user_input: dict) -> list[str]:
 
     ranked = sorted(stock_scores, key=lambda x: x[1], reverse=True)
 
-    print("######### rank_top_stocks ###########")
-    print(ranked)
+    #print("######### rank_top_stocks ###########")
+    #print(ranked)
     
-    print("######### sector_prefs ###########")
-    print(sector_prefs)
+    #print("######### sector_prefs ###########")
+    #print(sector_prefs)
     
     # Filter by user sector preferences if any
     if sector_prefs:
@@ -135,9 +135,6 @@ def rank_top_stocks(user_input: dict) -> list[str]:
                 pref in symbol_to_sector.get(symbol, "") for pref in sector_prefs
             )
         ]
-
-    print("######### rank_top_stocks - sectors ###########")
-    print(ranked)
     
     # # Enforce mix of sectors in final top list
     # selected = []
