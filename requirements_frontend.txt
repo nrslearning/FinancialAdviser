@@ -1,7 +1,7 @@
 streamlit
 pandas
 matplotlib
-fpdf
+#fpdf
 httpx
 langchain
 langchain-google-genai
