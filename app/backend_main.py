@@ -77,12 +77,17 @@ async def recommend(user: UserProfile):
     user_dict = user.dict()
     user_dict["investment_amount"] = user.monthly_investment * 12 * user.years + user.annual_extra_investment * user.years
     top10 = rank_top_stocks(user_dict)[:settings.NUM_SCREENED_STOCKS]
-    summaries = {symbol.upper(): summarize_stock_insights(symbol) for symbol, _ in top10}
+    #summaries = {symbol.upper(): summarize_stock_insights(symbol) for symbol, _ in top10}
+    # now that rank_top_stocks returns List[str], unpack only symbol
+    summaries = {
+        symbol.upper(): summarize_stock_insights(symbol)
+        for symbol in top10
+    }
     advice, updated_summaries = get_final_stock_advice(user_dict, summaries)
 
     return {
         "user_profile": user_dict,
-        "top_stocks": [symbol for symbol, _ in top10],
+        "top_stocks": top10,
         "advice": advice,
         "growth_data": updated_summaries
     }

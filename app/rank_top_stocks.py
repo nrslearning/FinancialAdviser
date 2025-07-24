@@ -1,6 +1,5 @@
 
 import pandas as pd
-#from app.stock_analysis import get_sentiment_from_news
 from app.config import settings
 from app.data_cache import ohlc_data, news_data, fundamentals_data, forecast_data, sentiment_score_data
 
@@ -44,109 +43,112 @@ def compute_user_resilience(user):
 
     return resilience
 
-def rank_top_stocks(user_input: dict) -> list[str]:
-    expected_return = user_input["expected_returns_percent"] / 100
-    risk_tolerance = user_input["risk_percent"]
-    investment_type = user_input["investment_type"]
-    sector_prefs = [s.lower() for s in user_input.get("interested_sectors", [])]
-    resilience = compute_user_resilience(user_input)
+# 1. Helper functions for raw factor calculation
+def compute_momentum(df, days=63):
+    returns = df["Close"].pct_change().dropna()
+    return returns.tail(days).mean()
 
-    stock_scores = []
-    temp = 0
+def compute_risk(df, beta):
+    returns = df["Close"].pct_change().dropna()
+    vol = returns.std()
+    return vol * beta  # or use max drawdown
 
-    # print(">>>>Sector:", sector_prefs)
-    # print(">>>>Resilience:", resilience)
-    # print(">>>>Investment_type:", investment_type)
-
-    for symbol in settings.INDEX_STOCKS:
-        try:
-            if symbol not in ohlc_data or symbol not in news_data or symbol not in fundamentals_data:
-                continue
-            
-            # Get sector from external file instead of fundamentals
-            sector = symbol_to_sector.get(symbol, "")
-
-            #If it is not the sector of intrest skip
-            if sector_prefs and all(pref not in sector for pref in sector_prefs):
-                continue
-            
-            #print(f"{symbol}\t: \t {sector}")
-            
-            growth = forecast_data.get(symbol, 0.0)
-            df = ohlc_data[symbol].copy()
-            df["returns"] = df["Close"].pct_change()
-            volatility = df["returns"].std()
-
-            #news_df = news_data[symbol]
-            #sentiment_score, _ = get_sentiment_from_news(news_df)
-            sentiment_score = sentiment_score_data.get(symbol, 0.0)
-
-            fundamentals_df = fundamentals_data[symbol]
-            pe = float(fundamentals_df.get("trailingPE", [40])[0])
-
-            score = 0
-            if sector_prefs and any(pref in sector for pref in sector_prefs):
-                score += 10
-
-            if risk_tolerance < 20 and volatility > 0.03:
-                score -= 10
-            elif volatility < 0.03:
-                score += 5
-
-            if investment_type == "Aggressive" and pe < 30 and growth > 0.1:
-                score += 15
-            elif investment_type == "Moderate" and 0.05 <= growth <= 0.1:
-                score += 10
-            elif investment_type == "Slow" and pe < 20:
-                score += 5
-
-            score += 20 * sentiment_score
-            score += (growth - expected_return) * 100
-
-            if pe > 50:
-                score -= 5
-
-            if resilience < 10 and volatility < 0.03:
-                score += 5
-            elif resilience > 15 and growth > 0.10:
-                score += 10
-            elif resilience < 5 and pe > 50:
-                score -= 10
-
-            stock_scores.append((symbol, score))
-
-        except Exception as e:
-            print(f"Error ranking {symbol}: {e}")
+def build_metrics_df(symbols, sector_map):
+    rows = []
+    missing = []
+    for sym in symbols:
+        if sym not in ohlc_data or sym not in fundamentals_data:
+            missing.append(sym)
             continue
-
-    ranked = sorted(stock_scores, key=lambda x: x[1], reverse=True)
-
-    #print("######### rank_top_stocks ###########")
-    #print(ranked)
+        
+        ohlc = ohlc_data[sym]
+        f = fundamentals_data[sym]
+        rows.append({
+            "symbol": sym,
+            "sector": sector_map.get(sym, ""),
+            "value_pe": -(f["forwardPE"][0] + f["trailingPE"][0]) / 2,
+            "value_div": f.get("dividendYield", [0])[0],
+            "growth_rev": f.get("revenueGrowth", [0])[0],
+            "growth_eps": f.get("earningsGrowth", [0])[0],
+            "quality_roe": f.get("returnOnEquity", [0])[0],
+            "quality_margin": (f.get("grossMargins",[0])[0] + f.get("profitMargins",[0])[0]) / 2,
+            "momentum": compute_momentum(ohlc),
+            "risk_beta": f.get("beta", [1])[0],
+            "risk_vol": ohlc["Close"].pct_change().std(),
+            "sentiment": sentiment_score_data.get(sym, 0.0),
+            "forecast": forecast_data.get(sym, 0.0)
+        })
     
-    #print("######### sector_prefs ###########")
-    #print(sector_prefs)
-    
-    # Filter by user sector preferences if any
-    if sector_prefs:
-        ranked = [
-            (symbol, score) for symbol, score in ranked
-            if symbol_to_sector.get(symbol, "") and any(
-                pref in symbol_to_sector.get(symbol, "") for pref in sector_prefs
-            )
-        ]
-    
-    # # Enforce mix of sectors in final top list
-    # selected = []
-    # seen_sectors = set()
-    # for symbol, _ in ranked:
-    #     fundamentals_path = settings.FUNDMENTALS_DIR / f"{symbol}_fundamentals_{settings.TODAY}.csv"
-    #     if fundamentals_path.exists():
-    #         sector = pd.read_csv(fundamentals_path).get("sector", [""])[0].lower()
-    #         if sector not in seen_sectors:
-    #             selected.append(symbol)
-    #             seen_sectors.add(sector)
-    #     if len(selected) >= settings.NUM_SCREENED_STOCKS:
-    #         break
+    if missing:
+        # you can also use logging.warning() here if you prefer
+        print(f"[build_metrics_df] skipped symbols with no data: {missing}")
 
-    return ranked
+    return pd.DataFrame(rows)
+
+# 2. Main ranking
+def rank_top_stocks(user_input: dict) -> list[str]:
+    # Unpack user inputs
+    exp_ret = user_input["expected_returns_percent"] / 100
+    risk_tol = user_input["risk_percent"] / 100
+    inv_type = user_input["investment_type"]
+    prefs = [s.lower() for s in user_input.get("interested_sectors", [])]
+    resilience = compute_user_resilience(user_input)  # reuse yours
+
+    # Build raw metrics
+    metrics = build_metrics_df(settings.INDEX_STOCKS, symbol_to_sector)
+
+    # Factor construction
+    metrics["value_score"]   = (metrics["value_pe"].rank() + metrics["value_div"].rank()) / 2
+    metrics["growth_score"]  = metrics["growth_rev"] + metrics["growth_eps"]
+    metrics["quality_score"] = metrics["quality_roe"] + metrics["quality_margin"]
+    metrics["momentum_score"]= metrics["momentum"]
+    metrics["risk_score"]    = metrics["risk_vol"] * metrics["risk_beta"]
+    metrics["sentiment_score"]= metrics["sentiment"]
+
+    # Standardize all factor scores
+    factor_cols = [
+        "value_score","growth_score","quality_score",
+        "momentum_score","sentiment_score","risk_score"
+    ]
+    for col in factor_cols:
+        metrics[col] = (metrics[col] - metrics[col].mean()) / metrics[col].std()
+
+    # Determine weights based on risk & type
+    # Example mapping (you can tune these):
+    if inv_type == "Aggressive":
+        weights = {
+            "value_score": 0.1, "growth_score": 0.35,
+            "quality_score": 0.1, "momentum_score": 0.25,
+            "sentiment_score": 0.1, "risk_score": 0.1
+        }
+    elif inv_type == "Moderate":
+        weights = {**dict.fromkeys(factor_cols, 1/6)}
+    else:  # Slow/Conservative
+        weights = {
+            "value_score": 0.3, "growth_score": 0.1,
+            "quality_score": 0.3, "momentum_score": 0.1,
+            "sentiment_score": 0.1, "risk_score": 0.1
+        }
+    # Mix in user’s risk tolerance & resilience
+    weights["risk_score"] *= (1 - risk_tol) * (resilience/20)
+
+    # Composite score
+    metrics["composite"] = sum(
+        weights[f] * metrics[f] for f in factor_cols
+    )
+
+    # Sector tilt & diversification
+    if prefs:
+        # +0.2 bonus to preferred sectors
+        metrics.loc[metrics["sector"].isin(prefs), "composite"] += 0.2
+    # Limit max 2 per sector
+    top = []
+    for _, row in metrics.sort_values("composite", ascending=False).iterrows():
+        sec = row["sector"]
+        if sum(1 for t in top if symbol_to_sector[t] == sec) >= 2:
+            continue
+        top.append(row["symbol"])
+        if len(top) >= settings.NUM_SCREENED_STOCKS:
+            break
+
+    return top
