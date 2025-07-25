@@ -223,10 +223,10 @@ with col1:
 
     investment_type = st.selectbox(
         "How would you describe your investment style?\n",
-        ["Aggressive", "Moderate", "Slow"],
+        ["Aggressive", "Moderate", "Conservative"],
         help="(**Aggressive**: Volatile stocks, startups\n\
                **Moderate**: Mix of growth and stability\n\
-               **Slow**: Safe, steady assets)"
+               **Conservative**: Safe, steady assets)"
     )
     investor_knowledge = st.selectbox("📚 What’s your comfort level with investing?\n",
                                       ["Beginner", "Intermediate", "Expert"],
