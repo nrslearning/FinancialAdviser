@@ -1,8 +1,10 @@
 name: 🚀 Build & Push Docker Images
 
 on:
-  pull_request:
-    branches: [main]
+  push: 
+    branches: [ "main" ] 
+  #pull_request:
+  #  branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -40,10 +42,10 @@ jobs:
         push: true
         tags: ${{ secrets.DOCKERHUB_USERNAME }}/finadviser-frontend-streamlit:latest
 
-    - name: 📦 Build and Push Chainlit Frontend Image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./Dockerfile.frontend.chainlit
-        push: true
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/finadviser-frontend-chainlit:latest
+    # - name: 📦 Build and Push Chainlit Frontend Image
+    #   uses: docker/build-push-action@v5
+    #   with:
+    #     context: .
+    #     file: ./Dockerfile.frontend.chainlit
+    #     push: true
+    #     tags: ${{ secrets.DOCKERHUB_USERNAME }}/finadviser-frontend-chainlit:latest
