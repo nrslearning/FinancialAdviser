@@ -30,7 +30,7 @@ jobs:
         context: .
         file: ./Dockerfile.backend
         push: true
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/finadviser-backend:latest
+        tags: ${{ secrets.DOCKER_USERNAME }}/finadviser-backend:latest
         build-args: |
           GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}
 
@@ -40,7 +40,7 @@ jobs:
         context: .
         file: ./Dockerfile.frontend
         push: true
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/finadviser-frontend-streamlit:latest
+        tags: ${{ secrets.DOCKER_USERNAME }}/finadviser-frontend-streamlit:latest
 
     # - name: 📦 Build and Push Chainlit Frontend Image
     #   uses: docker/build-push-action@v5
@@ -48,4 +48,4 @@ jobs:
     #     context: .
     #     file: ./Dockerfile.frontend.chainlit
     #     push: true
-    #     tags: ${{ secrets.DOCKERHUB_USERNAME }}/finadviser-frontend-chainlit:latest
+    #     tags: ${{ secrets.DOCKER_USERNAME }}/finadviser-frontend-chainlit:latest
