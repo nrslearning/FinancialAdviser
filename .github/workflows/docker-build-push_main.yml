@@ -49,3 +49,6 @@ jobs:
     #     file: ./Dockerfile.frontend.chainlit
     #     push: true
     #     tags: ${{ secrets.DOCKER_USERNAME }}/finadviser-frontend-chainlit:latest
+
+    - name: Logout to Docker hub
+      run: docker logout
